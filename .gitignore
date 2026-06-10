@@ -1,0 +1,5 @@
+/target
+*.exe
+# generated C++ sits next to the binary it was built from
+/examples/*.cpp
+/examples/*.out

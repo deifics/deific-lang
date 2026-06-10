@@ -1,0 +1,12 @@
+[package]
+name = "deific"
+version = "0.1.0"
+edition = "2021"
+description = "Deific: Python's syntax, transpiled to C++. C++ performance for competitive programming."
+
+[[bin]]
+name = "deific"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
