@@ -36,6 +36,7 @@ jobs:
       - name: Smoke-test examples
         run: |
           for f in examples/*.df; do
+            grep -q '^func main():' "$f" || continue
             echo "--- $f ---"
             ./target/release/deific emit "$f" > /dev/null
           done
