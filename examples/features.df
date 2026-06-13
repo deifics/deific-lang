@@ -1,0 +1,59 @@
+def main():
+    # augmented assignment
+    x = 0
+    x += 10
+    x -= 3
+    x *= 2
+
+    # bitwise ops
+    y = x & 15
+    z = x >> 1
+
+    # power
+    p = 2 ** 8
+
+    # float
+    f = 3.14
+
+    # min / max / abs
+    a = min(x, 100)
+    b = max(0, -5)
+    c = abs(-42)
+
+    # break / continue
+    total = 0
+    for i in range(10):
+        if i == 5:
+            break
+        total += i
+
+    # list literal + list comprehension
+    nums: list[int] = [1, 2, 3, 4, 5]
+    squares = [n * n for n in nums]
+
+    # in operator
+    found = 3 in nums
+
+    # multi-assign (swap)
+    u = 1
+    v = 2
+    u, v = v, u
+
+    # dict literal
+    d: dict[str, int] = {'a': 1, 'b': 2}
+
+    # set literal
+    s: set[int] = {1, 2, 3}
+
+    # range(start, stop)
+    rsum = 0
+    for i in range(1, 6):
+        rsum += i
+
+    print(x, y, z, p)
+    print(a, b, c)
+    print(total)
+    print(squares)
+    print(found)
+    print(u, v)
+    print(rsum)

@@ -1,9 +1,4 @@
 //! Abstract syntax tree for Deific.
-//!
-//! The tree is deliberately small: this is the v0 vertical slice that proves
-//! the thesis (Python syntax -> C++ -> native binary). Locals lean on C++
-//! `auto`, so the AST tracks types only where C++ genuinely needs them:
-//! function signatures.
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -12,11 +7,15 @@ pub enum Type {
     Bool,
     Str,
     Void,
+    BigInt,
     List(Box<Type>),
+    Dict(Box<Type>, Box<Type>),
+    Set(Box<Type>),
+    Tuple(Vec<Type>),
+    TypeVar(String),
 }
 
 impl Type {
-    /// The C++ spelling of this type. `int` is 64-bit by design (see README).
     pub fn cpp(&self) -> String {
         match self {
             Type::Int => "long long".into(),
@@ -24,7 +23,15 @@ impl Type {
             Type::Bool => "bool".into(),
             Type::Str => "std::string".into(),
             Type::Void => "void".into(),
+            Type::BigInt => "deific::bigint".into(),
             Type::List(inner) => format!("std::vector<{}>", inner.cpp()),
+            Type::Dict(k, v) => format!("std::unordered_map<{},{}>", k.cpp(), v.cpp()),
+            Type::Set(inner) => format!("std::unordered_set<{}>", inner.cpp()),
+            Type::Tuple(ts) => {
+                let cs: Vec<String> = ts.iter().map(|t| t.cpp()).collect();
+                format!("std::tuple<{}>", cs.join(","))
+            }
+            Type::TypeVar(name) => name.clone(),
         }
     }
 }
@@ -37,26 +44,48 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
-    pub params: Vec<(String, Type)>,
+    pub type_params: Vec<String>,
+    /// (param_name, is_ref, type)
+    pub params: Vec<(String, bool, Type)>,
     pub ret: Type,
     pub body: Vec<Stmt>,
+    #[allow(dead_code)]  // reserved for future tooling
+    pub line: usize,
+}
+
+/// Statement with source line number (used for `#line` directives).
+#[derive(Debug, Clone)]
+pub struct Stmt {
+    pub line: usize,
+    pub kind: StmtKind,
+}
+
+impl Stmt {
+    pub fn new(line: usize, kind: StmtKind) -> Self {
+        Stmt { line, kind }
+    }
 }
 
 #[derive(Debug, Clone)]
-pub enum Stmt {
-    /// `target [: ty] = value`. The emitter decides declare-vs-reassign by
-    /// tracking which names are already in scope.
+pub enum StmtKind {
+    /// `targets [: ty] = value`.  Single element for plain assign, multiple for tuple unpack.
     Assign {
-        target: Expr,
+        targets: Vec<Expr>,
         ty: Option<Type>,
+        value: Expr,
+    },
+    /// `target op= value`
+    AugAssign {
+        target: Expr,
+        op: BinOp,
         value: Expr,
     },
     ExprStmt(Expr),
     Return(Option<Expr>),
-    /// `for <var> in range(<count>):`
+    /// `for vars in iter:`  iter may be range(…) or any iterable.
     For {
-        var: String,
-        count: Expr,
+        vars: Vec<String>,
+        iter: Expr,
         body: Vec<Stmt>,
     },
     While {
@@ -69,14 +98,48 @@ pub enum Stmt {
         elifs: Vec<(Expr, Vec<Stmt>)>,
         els: Option<Vec<Stmt>>,
     },
+    Break,
+    Continue,
+    Pass,
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
     Int(i64),
+    Float(f64),
     Str(String),
     Bool(bool),
+    None,
     Name(String),
+    Tuple(Vec<Expr>),
+    /// List literal `[a, b, c]`
+    List(Vec<Expr>),
+    /// `[elt for vars in iter if cond]`
+    ListComp {
+        elt: Box<Expr>,
+        vars: Vec<String>,
+        iter: Box<Expr>,
+        cond: Option<Box<Expr>>,
+    },
+    /// `{k: v, ...}` or `{}`
+    DictLiteral(Vec<(Expr, Expr)>),
+    /// `{key: val for vars in iter if cond}`
+    DictComp {
+        key: Box<Expr>,
+        val: Box<Expr>,
+        vars: Vec<String>,
+        iter: Box<Expr>,
+        cond: Option<Box<Expr>>,
+    },
+    /// `{a, b, c}`
+    SetLiteral(Vec<Expr>),
+    /// `{elt for vars in iter if cond}`
+    SetComp {
+        elt: Box<Expr>,
+        vars: Vec<String>,
+        iter: Box<Expr>,
+        cond: Option<Box<Expr>>,
+    },
     Bin {
         op: BinOp,
         l: Box<Expr>,
@@ -86,12 +149,12 @@ pub enum Expr {
         op: UnOp,
         e: Box<Expr>,
     },
-    /// Free function call: `f(a, b)`.
+    /// Free function call: `f(a, b)`
     Call {
         func: String,
         args: Vec<Expr>,
     },
-    /// Method call: `recv.name(args)`.
+    /// Method call: `recv.name(args)`
     Method {
         recv: Box<Expr>,
         name: String,
@@ -101,30 +164,30 @@ pub enum Expr {
         base: Box<Expr>,
         idx: Box<Expr>,
     },
-    /// `*x` argument unpacking (only meaningful inside `print`).
+    /// `base[start:stop]` or `base[start:stop:step]`
+    Slice {
+        base: Box<Expr>,
+        start: Option<Box<Expr>>,
+        stop: Option<Box<Expr>>,
+        step: Option<Box<Expr>>,
+    },
+    /// `*x` argument unpacking (only meaningful inside `print`)
     Star(Box<Expr>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    FloorDiv,
-    Div,
-    Mod,
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    And,
-    Or,
+    Add, Sub, Mul, FloorDiv, Div, Mod, Pow,
+    BitAnd, BitOr, BitXor, Shl, Shr,
+    Eq, Ne, Lt, Le, Gt, Ge,
+    And, Or,
+    In, NotIn,
 }
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnOp {
     Neg,
     Not,
+    BitNot,
 }

@@ -74,7 +74,7 @@ fn compile_to_cpp(src: &str, path: &Path) -> String {
     if !program.funcs.iter().any(|f| f.name == "main") {
         fail("no `main` function found");
     }
-    emit::emit_program(&program)
+    emit::emit_program(&program, &path.to_string_lossy())
 }
 
 fn build_cpp(cpp: &str, out: &Path) {
