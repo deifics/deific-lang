@@ -969,57 +969,57 @@ mod tests {
 
     #[test]
     fn test_aug_assign_emit() {
-        let cpp = compile("def main():\n    x = 0\n    x += 1\n");
+        let cpp = compile("func main():\n    x = 0\n    x += 1\n");
         assert!(cpp.contains("x += 1"));
     }
 
     #[test]
     fn test_break_emit() {
-        let cpp = compile("def main():\n    while True:\n        break\n");
+        let cpp = compile("func main():\n    while True:\n        break\n");
         assert!(cpp.contains("break;"));
     }
 
     #[test]
     fn test_for_range_2arg() {
-        let cpp = compile("def main():\n    for i in range(1, 10):\n        pass\n");
+        let cpp = compile("func main():\n    for i in range(1, 10):\n        pass\n");
         assert!(cpp.contains("i < (10LL)"));
         assert!(cpp.contains("i = (1LL)"));
     }
 
     #[test]
     fn test_for_iter_emit() {
-        let cpp = compile("def main():\n    for x in arr:\n        pass\n");
+        let cpp = compile("func main():\n    for x in arr:\n        pass\n");
         assert!(cpp.contains("for (auto x : arr)"));
     }
 
     #[test]
     fn test_bitwise_emit() {
-        let cpp = compile("def main():\n    x = a & b\n");
+        let cpp = compile("func main():\n    x = a & b\n");
         assert!(cpp.contains("(a&b)"));
     }
 
     #[test]
     fn test_power_emit() {
-        let cpp = compile("def main():\n    x = 2 ** 10\n");
+        let cpp = compile("func main():\n    x = 2 ** 10\n");
         assert!(cpp.contains("deific::pow_int(2LL,10LL)"));
     }
 
     #[test]
     fn test_min_max() {
-        let cpp = compile("def main():\n    x = min(a, b)\n    y = max(a, b)\n");
+        let cpp = compile("func main():\n    x = min(a, b)\n    y = max(a, b)\n");
         assert!(cpp.contains("deific::deific_min"));
         assert!(cpp.contains("deific::deific_max"));
     }
 
     #[test]
     fn test_in_emit() {
-        let cpp = compile("def main():\n    x = a in b\n");
+        let cpp = compile("func main():\n    x = a in b\n");
         assert!(cpp.contains("deific::deific_in(a,b)"));
     }
 
     #[test]
     fn test_ref_param_emit() {
-        let cpp = compile("def fill(arr: ref list[int]) -> void:\n    pass\n");
+        let cpp = compile("func fill(arr: ref list[int]) -> void:\n    pass\n");
         assert!(cpp.contains("std::vector<long long>&arr"));
     }
 }

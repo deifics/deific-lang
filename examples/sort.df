@@ -2,7 +2,7 @@
 # Demonstrates: input(), int(), read_ints(), inference, for/range, indexing,
 # method calls (.sort()), and the fast-I/O runtime.
 
-def main():
+func main():
     n = int(input())
     a = read_ints(n)
     a.sort()

@@ -20,7 +20,7 @@ pub struct LexError {
 }
 
 const KEYWORDS: &[&str] = &[
-    "def", "return", "for", "in", "while", "if", "elif", "else",
+    "func", "return", "for", "in", "while", "if", "elif", "else",
     "and", "or", "not", "True", "False",
     "break", "continue", "pass", "None", "bigint", "ref",
 ];

@@ -97,7 +97,7 @@ impl Parser {
         let mut funcs = Vec::new();
         self.skip_newlines();
         while !matches!(self.peek(), Tok::Eof) {
-            if self.is_kw("def") {
+            if self.is_kw("func") {
                 funcs.push(self.parse_func()?);
             } else {
                 return self.err("only function definitions are allowed at top level");
@@ -111,7 +111,7 @@ impl Parser {
 
     fn parse_func(&mut self) -> PResult<Func> {
         let line = self.line();
-        self.eat_kw("def")?;
+        self.eat_kw("func")?;
         let name = self.ident()?;
 
         // Optional type parameters: [T, U, ...]
@@ -810,7 +810,7 @@ mod tests {
 
     #[test]
     fn test_augmented_assign() {
-        let prog = parse("def main():\n    x = 0\n    x += 1\n");
+        let prog = parse("func main():\n    x = 0\n    x += 1\n");
         assert!(matches!(
             &prog.funcs[0].body[1].kind,
             StmtKind::AugAssign { op: BinOp::Add, .. }
@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn test_break_continue() {
-        let prog = parse("def main():\n    while True:\n        break\n");
+        let prog = parse("func main():\n    while True:\n        break\n");
         let body = match &prog.funcs[0].body[0].kind {
             StmtKind::While { body, .. } => body,
             _ => panic!(),
@@ -829,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_for_iter() {
-        let prog = parse("def main():\n    for x in arr:\n        pass\n");
+        let prog = parse("func main():\n    for x in arr:\n        pass\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::For { iter: Expr::Name(n), .. } if n == "arr"
@@ -838,7 +838,7 @@ mod tests {
 
     #[test]
     fn test_bitwise() {
-        let prog = parse("def main():\n    x = a & b\n");
+        let prog = parse("func main():\n    x = a & b\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::Bin { op: BinOp::BitAnd, .. }, .. }
@@ -847,7 +847,7 @@ mod tests {
 
     #[test]
     fn test_power() {
-        let prog = parse("def main():\n    x = 2 ** 10\n");
+        let prog = parse("func main():\n    x = 2 ** 10\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::Bin { op: BinOp::Pow, .. }, .. }
@@ -856,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_float_literal() {
-        let prog = parse("def main():\n    x = 3.14\n");
+        let prog = parse("func main():\n    x = 3.14\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::Float(_), .. }
@@ -865,7 +865,7 @@ mod tests {
 
     #[test]
     fn test_in_operator() {
-        let prog = parse("def main():\n    x = a in b\n");
+        let prog = parse("func main():\n    x = a in b\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::Bin { op: BinOp::In, .. }, .. }
@@ -874,7 +874,7 @@ mod tests {
 
     #[test]
     fn test_list_literal() {
-        let prog = parse("def main():\n    x = [1, 2, 3]\n");
+        let prog = parse("func main():\n    x = [1, 2, 3]\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::List(_), .. }
@@ -883,7 +883,7 @@ mod tests {
 
     #[test]
     fn test_dict_literal() {
-        let prog = parse("def main():\n    x = {'a': 1}\n");
+        let prog = parse("func main():\n    x = {'a': 1}\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { value: Expr::DictLiteral(_), .. }
@@ -892,19 +892,19 @@ mod tests {
 
     #[test]
     fn test_generics() {
-        let prog = parse("def identity[T](x: T) -> T:\n    return x\n");
+        let prog = parse("func identity[T](x: T) -> T:\n    return x\n");
         assert_eq!(prog.funcs[0].type_params, vec!["T"]);
     }
 
     #[test]
     fn test_ref_param() {
-        let prog = parse("def fill(arr: ref list[int]) -> void:\n    pass\n");
+        let prog = parse("func fill(arr: ref list[int]) -> void:\n    pass\n");
         assert!(prog.funcs[0].params[0].1); // is_ref == true
     }
 
     #[test]
     fn test_multi_assign() {
-        let prog = parse("def main():\n    a, b = b, a\n");
+        let prog = parse("func main():\n    a, b = b, a\n");
         assert!(matches!(
             &prog.funcs[0].body[0].kind,
             StmtKind::Assign { targets, .. } if targets.len() == 2

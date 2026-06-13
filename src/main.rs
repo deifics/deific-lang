@@ -77,20 +77,37 @@ fn compile_to_cpp(src: &str, path: &Path) -> String {
     emit::emit_program(&program, &path.to_string_lossy())
 }
 
+fn find_gpp() -> &'static str {
+    const CANDIDATES: &[&str] = &[
+        "g++",
+        r"C:\msys64\ucrt64\bin\g++.exe",
+        r"C:\msys64\mingw64\bin\g++.exe",
+    ];
+    for &c in CANDIDATES {
+        if Command::new(c).arg("--version").output().is_ok() {
+            return c;
+        }
+    }
+    "g++"
+}
+
 fn build_cpp(cpp: &str, out: &Path) {
     let cpp_path = out.with_extension("cpp");
     if let Err(e) = std::fs::write(&cpp_path, cpp) {
         fail(&format!("cannot write {}: {}", cpp_path.display(), e));
     }
-    let status = Command::new("g++")
+    let result = Command::new(find_gpp())
         .arg("-O2")
         .arg("-std=c++17")
         .arg("-o")
         .arg(out)
         .arg(&cpp_path)
-        .status()
+        .output()
         .unwrap_or_else(|e| fail(&format!("failed to invoke g++: {}", e)));
-    if !status.success() {
+    if !result.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&result.stderr));
+    }
+    if !result.status.success() {
         fail("g++ failed to compile the generated C++");
     }
 }
