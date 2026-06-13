@@ -6,6 +6,11 @@
 
 use crate::ast::*;
 use std::collections::HashSet;
+use std::cell::RefCell;
+
+thread_local! {
+    static STRUCT_NAMES: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+}
 
 pub const RUNTIME: &str = r####"#include <cstdio>
 #include <string>
@@ -19,6 +24,7 @@ pub const RUNTIME: &str = r####"#include <cstdio>
 #include <functional>
 #include <cctype>
 #include <climits>
+#include <stdexcept>
 
 namespace deific {
 
@@ -332,6 +338,25 @@ inline std::string str_zfill(const std::string& s, long long w) {
     return (long long)s.size()>=w ? s : std::string(w-s.size(),'0')+s;
 }
 
+// ---- panic / assert -------------------------------------------------------
+#ifdef DEIFIC_TEST
+inline void panic(const std::string& msg) { throw std::runtime_error(msg); }
+#else
+inline void panic(const std::string& msg) {
+    std::fprintf(stderr, "panic: %s\n", msg.c_str());
+    std::exit(1);
+}
+#endif
+inline void deific_assert(bool cond, const char* msg) {
+    if (!cond) panic(std::string("assertion failed: ") + msg);
+}
+
+// ---- defer (RAII scope guard) ---------------------------------------------
+struct Defer {
+    std::function<void()> fn;
+    ~Defer() { fn(); }
+};
+
 } // namespace deific
 "####;
 
@@ -347,19 +372,86 @@ fn gensym(prefix: &str) -> String {
 // ---- program entry --------------------------------------------------------
 
 pub fn emit_program(p: &Program, src_path: &str) -> String {
+    emit_program_inner(p, src_path, false)
+}
+
+pub fn emit_test_program(p: &Program, src_path: &str) -> (String, Vec<String>) {
+    let test_fns: Vec<String> = p.funcs.iter()
+        .filter(|f| f.name.starts_with("test_") && f.params.is_empty() && f.ret == Type::Void)
+        .map(|f| f.name.clone())
+        .collect();
+    let cpp = emit_program_inner(p, src_path, true);
+    (cpp, test_fns)
+}
+
+fn emit_program_inner(p: &Program, src_path: &str, test_mode: bool) -> String {
+    // Register struct names for use in expr()
+    STRUCT_NAMES.with(|sn| {
+        let mut set = sn.borrow_mut();
+        set.clear();
+        for s in &p.structs { set.insert(s.name.clone()); }
+    });
+
     let mut s = String::new();
+    if test_mode { s.push_str("#define DEIFIC_TEST\n"); }
     s.push_str(RUNTIME);
     s.push('\n');
+
+    // Struct definitions
+    for st in &p.structs {
+        s.push_str(&format!("struct {} {{\n", st.name));
+        for (fname, ftype) in &st.fields {
+            s.push_str(&format!("    {} {};\n", ftype.cpp(), fname));
+        }
+        s.push_str("};\n");
+    }
+    if !p.structs.is_empty() { s.push('\n'); }
+
+    // Global variables
+    for g in &p.globals {
+        if let Some(ty) = &g.ty {
+            s.push_str(&format!("{} {} = {};\n", ty.cpp(), g.name, expr(&g.value)));
+        } else {
+            s.push_str(&format!("auto {} = {};\n", g.name, expr(&g.value)));
+        }
+    }
+    if !p.globals.is_empty() { s.push('\n'); }
+
     for f in &p.funcs {
-        emit_func(&mut s, f, src_path);
+        emit_func(&mut s, f, src_path, &p.globals);
         s.push('\n');
     }
+
+    if test_mode {
+        let test_fns: Vec<&str> = p.funcs.iter()
+            .filter(|f| f.name.starts_with("test_") && f.params.is_empty() && f.ret == Type::Void)
+            .map(|f| f.name.as_str())
+            .collect();
+        s.push_str("int main() {\n");
+        s.push_str("    int _passed = 0, _failed = 0;\n");
+        for name in test_fns {
+            s.push_str(&format!(
+                "    try {{ {name}(); deific::print(std::string(\"PASS {name}\")); _passed++; }}\n\
+                 \x20   catch (const std::exception& _e) {{ deific::print(std::string(\"FAIL {name}: \") + _e.what()); _failed++; }}\n",
+                name = name
+            ));
+        }
+        s.push_str("    deific::print(_passed, std::string(\"passed,\"), _failed, std::string(\"failed\"));\n");
+        s.push_str("    return _failed > 0 ? 1 : 0;\n}\n");
+    }
+
     s
 }
 
-fn emit_func(s: &mut String, f: &Func, src_path: &str) {
+fn emit_func(s: &mut String, f: &Func, src_path: &str, globals: &[crate::ast::GlobalVar]) {
     let is_main = f.name == "main" && f.params.is_empty() && f.ret == Type::Void;
-    let mut scope: HashSet<String> = HashSet::new();
+    // Pre-seed scope with any names this function declares `global`
+    let declared_globals: HashSet<String> = f.body.iter().filter_map(|st| {
+        if let StmtKind::Global(names) = &st.kind { Some(names.iter().cloned()) } else { None }
+    }).flatten().collect();
+    // Also pre-seed all program-level globals so they're never re-declared with `auto`
+    let global_names: HashSet<String> = globals.iter().map(|g| g.name.clone()).collect();
+    let mut scope: HashSet<String> = declared_globals.union(&global_names).cloned().collect();
 
     // Generic template prefix
     if !f.type_params.is_empty() {
@@ -401,6 +493,14 @@ fn emit_stmt(s: &mut String, st: &Stmt, scope: &mut HashSet<String>, depth: usiz
     s.push_str(&format!("#line {} \"{}\"\n", st.line, src.replace('\\', "/")));
 
     match &st.kind {
+        StmtKind::Global(_) => { /* resolved at function scope setup — no C++ output needed */ }
+
+        StmtKind::Defer(e) => {
+            let n = gensym("defer");
+            indent(s, depth);
+            s.push_str(&format!("deific::Defer {}{{[&](){{ {}; }}}};\n", n, expr(e)));
+        }
+
         StmtKind::Pass => {
             indent(s, depth);
             s.push_str("/* pass */\n");
@@ -729,6 +829,7 @@ fn expr(e: &Expr) -> String {
             }
         }
 
+        Expr::Field { recv, name } => format!("{}.{}", expr(recv), name),
         Expr::Method { recv, name, args } => emit_method(recv, name, args),
         Expr::Call    { func, args }      => emit_call(func, args),
     }
@@ -796,7 +897,20 @@ fn emit_call(func: &str, args: &[Expr]) -> String {
         "gcd"         => format!("deific::gcd({})", a.join(",")),
         "lcm"         => format!("deific::lcm({})", a.join(",")),
         "pow_mod"     => format!("deific::pow_mod({})", a.join(",")),
-        _             => format!("{}({})", func, a.join(",")),
+        "panic"       => format!("deific::panic({})", a.join(",")),
+        "assert"      => {
+            let cond = a.first().map(|s| s.as_str()).unwrap_or("true");
+            format!("deific::deific_assert({}, \"{}\")", cond, cond.replace('"', "\\\""))
+        }
+        _ => {
+            // Struct construction: Point(1, 2) → Point{1LL, 2LL}
+            let is_struct = STRUCT_NAMES.with(|sn| sn.borrow().contains(func));
+            if is_struct {
+                format!("{}{{{}}}", func, a.join(","))
+            } else {
+                format!("{}({})", func, a.join(","))
+            }
+        }
     }
 }
 

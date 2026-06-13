@@ -94,17 +94,59 @@ impl Parser {
     // ---- program ------------------------------------------------------------
 
     pub fn parse_program(&mut self) -> PResult<Program> {
+        let mut structs = Vec::new();
+        let mut globals = Vec::new();
         let mut funcs = Vec::new();
         self.skip_newlines();
         while !matches!(self.peek(), Tok::Eof) {
-            if self.is_kw("func") {
+            if self.is_kw("struct") {
+                structs.push(self.parse_struct()?);
+            } else if self.is_kw("func") {
                 funcs.push(self.parse_func()?);
             } else {
-                return self.err("only function definitions are allowed at top level");
+                // Top-level variable: `name [: type] = expr`
+                let name = self.ident()?;
+                let ty = if self.is_op(":") {
+                    self.bump();
+                    Some(self.parse_type()?)
+                } else {
+                    None
+                };
+                self.eat_op("=")?;
+                let value = self.parse_rhs()?;
+                self.expect_newline()?;
+                globals.push(crate::ast::GlobalVar { name, ty, value });
             }
             self.skip_newlines();
         }
-        Ok(Program { funcs })
+        Ok(Program { structs, globals, funcs })
+    }
+
+    fn parse_struct(&mut self) -> PResult<crate::ast::StructDef> {
+        self.eat_kw("struct")?;
+        let name = self.ident()?;
+        self.eat_op(":")?;
+        // Indented block of `field: type` lines
+        if !matches!(self.peek(), Tok::Newline) {
+            return self.err("expected newline after struct name");
+        }
+        self.bump();
+        if !matches!(self.peek(), Tok::Indent) {
+            return self.err("expected indented field list");
+        }
+        self.bump();
+        let mut fields = Vec::new();
+        while !matches!(self.peek(), Tok::Dedent | Tok::Eof) {
+            self.skip_newlines();
+            if matches!(self.peek(), Tok::Dedent | Tok::Eof) { break; }
+            let fname = self.ident()?;
+            self.eat_op(":")?;
+            let ftype = self.parse_type()?;
+            self.expect_newline()?;
+            fields.push((fname, ftype));
+        }
+        if matches!(self.peek(), Tok::Dedent) { self.bump(); }
+        Ok(crate::ast::StructDef { name, fields })
     }
 
     // ---- functions ----------------------------------------------------------
@@ -157,6 +199,19 @@ impl Parser {
     fn parse_type(&mut self) -> PResult<Type> {
         // `ref` used inside parameter lists is handled before calling parse_type
         if self.is_kw("bigint") { self.bump(); return Ok(Type::BigInt); }
+
+        // Go-style tuple return: `(int, bool)`
+        if self.is_op("(") {
+            self.bump();
+            let mut ts = vec![self.parse_type()?];
+            while self.is_op(",") {
+                self.bump();
+                if self.is_op(")") { break; }
+                ts.push(self.parse_type()?);
+            }
+            self.eat_op(")")?;
+            return Ok(Type::Tuple(ts));
+        }
 
         match self.peek().clone() {
             Tok::Ident(name) => {
@@ -242,7 +297,7 @@ impl Parser {
                 self.expect_newline()?;
                 return Ok(stmt!(StmtKind::Return(None)));
             }
-            let e = self.parse_expr()?;
+            let e = self.parse_rhs()?;
             self.expect_newline()?;
             return Ok(stmt!(StmtKind::Return(Some(e))));
         }
@@ -257,6 +312,22 @@ impl Parser {
         if self.is_kw("pass") {
             self.bump(); self.expect_newline()?;
             return Ok(stmt!(StmtKind::Pass));
+        }
+        if self.is_kw("global") {
+            self.bump();
+            let mut names = vec![self.ident()?];
+            while self.is_op(",") {
+                self.bump();
+                names.push(self.ident()?);
+            }
+            self.expect_newline()?;
+            return Ok(stmt!(StmtKind::Global(names)));
+        }
+        if self.is_kw("defer") {
+            self.bump();
+            let e = self.parse_expr()?;
+            self.expect_newline()?;
+            return Ok(stmt!(StmtKind::Defer(e)));
         }
         if self.is_kw("for") {
             return self.parse_for();
@@ -627,10 +698,14 @@ impl Parser {
             } else if self.is_op(".") {
                 self.bump();
                 let name = self.ident()?;
-                self.eat_op("(")?;
-                let args = self.parse_args()?;
-                self.eat_op(")")?;
-                e = Expr::Method { recv: Box::new(e), name, args };
+                if self.is_op("(") {
+                    self.bump();
+                    let args = self.parse_args()?;
+                    self.eat_op(")")?;
+                    e = Expr::Method { recv: Box::new(e), name, args };
+                } else {
+                    e = Expr::Field { recv: Box::new(e), name };
+                }
             } else {
                 break;
             }

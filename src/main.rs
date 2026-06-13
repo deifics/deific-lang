@@ -1,9 +1,11 @@
 //! Deific compiler CLI.
 //!
 //! Subcommands:
-//!   deific emit  <file.df>            print generated C++ to stdout (submittable)
-//!   deific build <file.df> [-o out]   compile to a native binary via g++
-//!   deific run   <file.df>            build to a temp binary and run it
+//!   deific emit  <file.df>              print generated C++ to stdout (submittable)
+//!   deific build <file.df> [-o out]     compile to a native binary via g++
+//!   deific build <file.df> --static     link statically (portable binary)
+//!   deific run   <file.df>              build to a temp binary and run it
+//!   deific test  <file.df>              run all test_* functions and report results
 
 mod ast;
 mod emit;
@@ -27,24 +29,38 @@ fn main() {
         Err(e) => fail(&format!("cannot read {}: {}", src_path.display(), e)),
     };
 
-    let cpp = compile_to_cpp(&src, &src_path);
+    let is_static = args.iter().any(|a| a == "--static");
 
     match cmd {
         "emit" => {
+            let cpp = compile_to_cpp(&src, &src_path, false);
             print!("{}", cpp);
         }
         "build" => {
+            let cpp = compile_to_cpp(&src, &src_path, false);
             let out = parse_out_flag(&args).unwrap_or_else(|| default_bin(&src_path));
-            build_cpp(&cpp, &out);
+            build_cpp(&cpp, &out, is_static);
             eprintln!("deific: wrote {}", out.display());
         }
         "run" => {
+            let cpp = compile_to_cpp(&src, &src_path, false);
             let tmp = std::env::temp_dir().join(format!("deific_{}", std::process::id()));
             let bin = with_exe_ext(&tmp);
-            build_cpp(&cpp, &bin);
+            build_cpp(&cpp, &bin, false);
             let status = Command::new(&bin)
                 .status()
                 .unwrap_or_else(|e| fail(&format!("failed to run binary: {}", e)));
+            let _ = std::fs::remove_file(&bin);
+            exit(status.code().unwrap_or(1));
+        }
+        "test" => {
+            let cpp = compile_to_cpp(&src, &src_path, true);
+            let tmp = std::env::temp_dir().join(format!("deific_test_{}", std::process::id()));
+            let bin = with_exe_ext(&tmp);
+            build_cpp(&cpp, &bin, false);
+            let status = Command::new(&bin)
+                .status()
+                .unwrap_or_else(|e| fail(&format!("failed to run test binary: {}", e)));
             let _ = std::fs::remove_file(&bin);
             exit(status.code().unwrap_or(1));
         }
@@ -56,7 +72,7 @@ fn main() {
     }
 }
 
-fn compile_to_cpp(src: &str, path: &Path) -> String {
+fn compile_to_cpp(src: &str, path: &Path, test_mode: bool) -> String {
     let toks = match lexer::lex(src) {
         Ok(t) => t,
         Err(e) => fail(&format!("{}:{}: lex error: {}", path.display(), e.line, e.msg)),
@@ -64,17 +80,22 @@ fn compile_to_cpp(src: &str, path: &Path) -> String {
     let mut p = parser::Parser::new(toks);
     let program = match p.parse_program() {
         Ok(pr) => pr,
-        Err(e) => fail(&format!(
-            "{}:{}: parse error: {}",
-            path.display(),
-            e.line,
-            e.msg
-        )),
+        Err(e) => fail(&format!("{}:{}: parse error: {}", path.display(), e.line, e.msg)),
     };
-    if !program.funcs.iter().any(|f| f.name == "main") {
-        fail("no `main` function found");
+    if test_mode {
+        let (cpp, fns) = emit::emit_test_program(&program, &path.to_string_lossy());
+        if fns.is_empty() {
+            eprintln!("deific: warning: no test_* functions found");
+        } else {
+            eprintln!("deific: running {} test(s)", fns.len());
+        }
+        cpp
+    } else {
+        if !program.funcs.iter().any(|f| f.name == "main") {
+            fail("no `main` function found");
+        }
+        emit::emit_program(&program, &path.to_string_lossy())
     }
-    emit::emit_program(&program, &path.to_string_lossy())
 }
 
 fn find_gpp() -> &'static str {
@@ -91,18 +112,17 @@ fn find_gpp() -> &'static str {
     "g++"
 }
 
-fn build_cpp(cpp: &str, out: &Path) {
+fn build_cpp(cpp: &str, out: &Path, static_link: bool) {
     let cpp_path = out.with_extension("cpp");
     if let Err(e) = std::fs::write(&cpp_path, cpp) {
         fail(&format!("cannot write {}: {}", cpp_path.display(), e));
     }
-    let result = Command::new(find_gpp())
-        .arg("-O2")
-        .arg("-std=c++17")
-        .arg("-o")
-        .arg(out)
-        .arg(&cpp_path)
-        .output()
+    let mut cmd = Command::new(find_gpp());
+    cmd.arg("-O2").arg("-std=c++17").arg("-o").arg(out).arg(&cpp_path);
+    if static_link {
+        cmd.arg("-static-libgcc").arg("-static-libstdc++");
+    }
+    let result = cmd.output()
         .unwrap_or_else(|e| fail(&format!("failed to invoke g++: {}", e)));
     if !result.stderr.is_empty() {
         eprint!("{}", String::from_utf8_lossy(&result.stderr));
@@ -130,7 +150,7 @@ fn with_exe_ext(p: &Path) -> PathBuf {
 }
 
 fn usage() {
-    eprintln!("usage: deific <emit|build|run> <file.df> [-o out]");
+    eprintln!("usage: deific <emit|build|run|test> <file.df> [-o out] [--static]");
 }
 
 fn fail(msg: &str) -> ! {

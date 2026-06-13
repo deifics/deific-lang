@@ -37,7 +37,22 @@ impl Type {
 }
 
 #[derive(Debug, Clone)]
+pub struct StructDef {
+    pub name: String,
+    pub fields: Vec<(String, Type)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalVar {
+    pub name: String,
+    pub ty: Option<Type>,
+    pub value: Expr,
+}
+
+#[derive(Debug, Clone)]
 pub struct Program {
+    pub structs: Vec<StructDef>,
+    pub globals: Vec<GlobalVar>,
     pub funcs: Vec<Func>,
 }
 
@@ -101,6 +116,10 @@ pub enum StmtKind {
     Break,
     Continue,
     Pass,
+    /// `global x, y` — marks names as referring to module-level globals.
+    Global(Vec<String>),
+    /// `defer expr()` — runs expr at end of enclosing function scope.
+    Defer(Expr),
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +192,8 @@ pub enum Expr {
     },
     /// `*x` argument unpacking (only meaningful inside `print`)
     Star(Box<Expr>),
+    /// `recv.field` (no call — field access on a struct)
+    Field { recv: Box<Expr>, name: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
