@@ -101,7 +101,7 @@ impl Parser {
         while !matches!(self.peek(), Tok::Eof) {
             if self.is_kw("struct") {
                 structs.push(self.parse_struct()?);
-            } else if self.is_kw("func") {
+            } else if self.is_kw("func") || self.is_kw("inline") {
                 funcs.push(self.parse_func()?);
             } else {
                 // Top-level variable: `name [: type] = expr`
@@ -153,6 +153,7 @@ impl Parser {
 
     fn parse_func(&mut self) -> PResult<Func> {
         let line = self.line();
+        let is_inline = if self.is_kw("inline") { self.bump(); true } else { false };
         self.eat_kw("func")?;
         let name = self.ident()?;
 
@@ -193,7 +194,7 @@ impl Parser {
         };
         self.eat_op(":")?;
         let body = self.parse_block()?;
-        Ok(Func { name, type_params, params, ret, body, line })
+        Ok(Func { name, is_inline, type_params, params, ret, body, line })
     }
 
     fn parse_type(&mut self) -> PResult<Type> {
@@ -328,6 +329,23 @@ impl Parser {
             let e = self.parse_expr()?;
             self.expect_newline()?;
             return Ok(stmt!(StmtKind::Defer(e)));
+        }
+        if self.is_kw("const") {
+            self.bump();
+            let name = self.ident()?;
+            self.eat_op("=")?;
+            let value = self.parse_rhs()?;
+            self.expect_newline()?;
+            return Ok(stmt!(StmtKind::Const { name, value }));
+        }
+        if self.is_kw("static") {
+            self.bump();
+            let name = self.ident()?;
+            let ty = if self.is_op(":") { self.bump(); Some(self.parse_type()?) } else { None };
+            self.eat_op("=")?;
+            let value = self.parse_rhs()?;
+            self.expect_newline()?;
+            return Ok(stmt!(StmtKind::Static { name, ty, value }));
         }
         if self.is_kw("for") {
             return self.parse_for();

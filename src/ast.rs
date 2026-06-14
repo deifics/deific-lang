@@ -59,6 +59,7 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct Func {
     pub name: String,
+    pub is_inline: bool,
     pub type_params: Vec<String>,
     /// (param_name, is_ref, type)
     pub params: Vec<(String, bool, Type)>,
@@ -120,6 +121,10 @@ pub enum StmtKind {
     Global(Vec<String>),
     /// `defer expr()` — runs expr at end of enclosing function scope.
     Defer(Expr),
+    /// `const name = value` — compile-time constant (C++ constexpr).
+    Const { name: String, value: Expr },
+    /// `static name = value` — local static (initialized once).
+    Static { name: String, ty: Option<Type>, value: Expr },
 }
 
 #[derive(Debug, Clone)]

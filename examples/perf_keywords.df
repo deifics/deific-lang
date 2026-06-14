@@ -1,0 +1,16 @@
+inline func square(x: int) -> int:
+    return x * x
+
+func main():
+    const PI = 3
+    static call_count = 0
+    call_count += 1
+
+    print(square(5))
+    print(PI)
+    print(call_count)
+
+    if square(0) == 0:
+        exit(0)
+
+    print("unreachable")

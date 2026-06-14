@@ -25,6 +25,7 @@ pub const RUNTIME: &str = r####"#include <cstdio>
 #include <cctype>
 #include <climits>
 #include <stdexcept>
+#include <cstdlib>
 
 namespace deific {
 
@@ -464,13 +465,10 @@ fn emit_func(s: &mut String, f: &Func, src_path: &str, globals: &[crate::ast::Gl
     } else {
         let params: Vec<String> = f.params.iter().map(|(n, is_ref, t)| {
             scope.insert(n.clone());
-            if *is_ref {
-                format!("{}&{}", t.cpp(), n)
-            } else {
-                format!("{} {}", t.cpp(), n)
-            }
+            if *is_ref { format!("{}&{}", t.cpp(), n) } else { format!("{} {}", t.cpp(), n) }
         }).collect();
-        s.push_str(&format!("{} {}({}) {{\n", f.ret.cpp(), f.name, params.join(",")));
+        let inline_prefix = if f.is_inline { "inline " } else { "" };
+        s.push_str(&format!("{}{} {}({}) {{\n", inline_prefix, f.ret.cpp(), f.name, params.join(",")));
     }
 
     for st in &f.body {
@@ -494,6 +492,20 @@ fn emit_stmt(s: &mut String, st: &Stmt, scope: &mut HashSet<String>, depth: usiz
 
     match &st.kind {
         StmtKind::Global(_) => { /* resolved at function scope setup — no C++ output needed */ }
+
+        StmtKind::Const { name, value } => {
+            indent(s, depth);
+            s.push_str(&format!("constexpr auto {} = {};\n", name, expr(value)));
+        }
+
+        StmtKind::Static { name, ty, value } => {
+            indent(s, depth);
+            if let Some(t) = ty {
+                s.push_str(&format!("static {} {} = {};\n", t.cpp(), name, expr(value)));
+            } else {
+                s.push_str(&format!("static auto {} = {};\n", name, expr(value)));
+            }
+        }
 
         StmtKind::Defer(e) => {
             let n = gensym("defer");
@@ -897,6 +909,7 @@ fn emit_call(func: &str, args: &[Expr]) -> String {
         "gcd"         => format!("deific::gcd({})", a.join(",")),
         "lcm"         => format!("deific::lcm({})", a.join(",")),
         "pow_mod"     => format!("deific::pow_mod({})", a.join(",")),
+        "exit"        => format!("std::exit({})", if a.is_empty() { "0".into() } else { a[0].clone() }),
         "panic"       => format!("deific::panic({})", a.join(",")),
         "assert"      => {
             let cond = a.first().map(|s| s.as_str()).unwrap_or("true");
