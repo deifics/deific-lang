@@ -1,20 +1,19 @@
-<h1 align="center">Deific</h1>
+﻿<h1 align="center">Deific</h1>
 
 <p align="center">
-  <strong>Python's syntax. C++ speed.</strong>
+  <strong>Write fast. Stay readable.</strong>
 </p>
 
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="Built with Rust" src="https://img.shields.io/badge/built%20with-Rust-orange.svg">
-  <img alt="Target: C++17" src="https://img.shields.io/badge/target-C%2B%2B17-00599C.svg">
-  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg">
   <img alt="CI" src="https://github.com/deifics/deific-lang/actions/workflows/ci.yml/badge.svg">
+  <img alt="GitHub Stars" src="https://img.shields.io/github/stars/deifics/deific-lang?style=social">
 </p>
 
 ---
 
-Deific is a fast, statically-compiled language with Python-like syntax. Write expressive, readable code — get a native binary that runs at full C++ speed. There's no runtime, no VM, no garbage collector. Just your code, transpiled to C++17, compiled by g++.
+Deific is a fast, statically-compiled language with Python-like syntax. Write expressive, readable code - get a native binary that runs at full C++ speed. There's no runtime, no VM, no garbage collector. Just your code, transpiled to C++17, compiled by g++.
 
 ```python
 struct Point:
@@ -49,7 +48,7 @@ $ deific run main.df
 | **Assignment** | Reference + GC | Value-copy semantics; `ref` for in-place mutation |
 | **Strings** | Unicode codepoints | Byte strings (`std::string`) |
 
-**No magic.** Type inference uses C++ `auto` — only annotate empty containers and function signatures. The generated C++ is readable and can be inspected with `deific emit`.
+**No magic.** Type inference uses C++ `auto` - only annotate empty containers and function signatures. The generated C++ is readable and can be inspected with `deific emit`.
 
 **Zero dependencies.** The compiler is a single Rust binary. The emitted `.cpp` is self-contained.
 
@@ -60,12 +59,12 @@ $ deific run main.df
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (stable; GNU toolchain on Windows)
-- `g++` with C++17 support — [MSYS2 ucrt64](https://www.msys2.org/) recommended on Windows
+- `g++` with C++17 support - [MSYS2 ucrt64](https://www.msys2.org/) recommended on Windows
 
 ### Build from source
 
 ```powershell
-# Windows (PowerShell) — must use GNU toolchain, not MSVC
+# Windows (PowerShell) - must use GNU toolchain, not MSVC
 cargo +stable-x86_64-pc-windows-gnu build --release
 ```
 
@@ -78,7 +77,7 @@ Binary at `target/release/deific` (or `deific.exe` on Windows).
 
 ### Pre-built releases
 
-Download a pre-built binary from the [Releases](https://github.com/deifics/deific-lang/releases) page. You still need `g++` installed separately — Deific calls it to compile the generated C++.
+Download a pre-built binary from the [Releases](https://github.com/deifics/deific-lang/releases) page. You still need `g++` installed separately - Deific calls it to compile the generated C++.
 
 ---
 
@@ -338,4 +337,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
