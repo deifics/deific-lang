@@ -8,7 +8,6 @@
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg">
   <img alt="Built with Rust" src="https://img.shields.io/badge/built%20with-Rust-orange.svg">
   <img alt="CI" src="https://github.com/deifics/deific-lang/actions/workflows/ci.yml/badge.svg">
-  <img alt="GitHub Stars" src="https://img.shields.io/github/stars/deifics/deific-lang?style=social">
 </p>
 
 ---

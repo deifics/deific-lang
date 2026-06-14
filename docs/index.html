@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deific Language Documentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #fff;
+      display: flex;
+    }
+
+    /* ---- sidebar ---- */
+    nav {
+      width: 230px;
+      min-width: 230px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      background: #f7f7f7;
+      border-right: 1px solid #e0e0e0;
+      padding: 24px 0;
+    }
+
+    nav .logo {
+      font-size: 18px;
+      font-weight: 700;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      display: block;
+      text-decoration: none;
+      color: #1a1a1a;
+    }
+
+    nav .logo span { color: #555; font-weight: 400; font-size: 13px; display: block; margin-top: 2px; }
+
+    nav ul { list-style: none; padding: 12px 0; }
+    nav ul li a {
+      display: block;
+      padding: 5px 20px;
+      text-decoration: none;
+      color: #333;
+      font-size: 13.5px;
+    }
+    nav ul li a:hover { color: #000; background: #eee; }
+    nav .nav-section {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      padding: 14px 20px 4px;
+    }
+
+    /* ---- main content ---- */
+    main {
+      flex: 1;
+      max-width: 820px;
+      padding: 48px 56px;
+    }
+
+    h1 { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 20px; font-weight: 700; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+    h3 { font-size: 15px; font-weight: 700; margin: 24px 0 8px; }
+    p  { margin-bottom: 12px; color: #222; }
+
+    a { color: #0060c0; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f0f0f0;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    pre {
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      margin: 10px 0 16px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    pre code { background: none; padding: 0; font-size: inherit; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 13.5px;
+    }
+    th {
+      text-align: left;
+      padding: 7px 12px;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      font-weight: 600;
+    }
+    td {
+      padding: 7px 12px;
+      border: 1px solid #e0e0e0;
+      vertical-align: top;
+    }
+    td code { font-size: 12.5px; }
+
+    .note {
+      background: #fffbe6;
+      border-left: 3px solid #e0a800;
+      padding: 10px 14px;
+      margin: 12px 0 16px;
+      font-size: 13.5px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 28px;
+    }
+
+    section { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="#">Deific <span>Language Reference</span></a>
+  <ul>
+    <li class="nav-section">Getting Started</li>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#install">Installation</a></li>
+    <li><a href="#cli">CLI Usage</a></li>
+    <li class="nav-section">Language</li>
+    <li><a href="#types">Types</a></li>
+    <li><a href="#variables">Variables</a></li>
+    <li><a href="#operators">Operators</a></li>
+    <li><a href="#control-flow">Control Flow</a></li>
+    <li><a href="#functions">Functions</a></li>
+    <li><a href="#structs">Structs</a></li>
+    <li><a href="#collections">Collections</a></li>
+    <li><a href="#strings">Strings</a></li>
+    <li class="nav-section">Built-ins</li>
+    <li><a href="#io">Input / Output</a></li>
+    <li><a href="#builtins">Built-in Functions</a></li>
+    <li><a href="#special">Special Keywords</a></li>
+    <li class="nav-section">More</li>
+    <li><a href="#differences">Python Differences</a></li>
+    <li><a href="#examples">Examples</a></li>
+  </ul>
+</nav>
+
+<main>
+
+  <h1>Deific</h1>
+  <p class="subtitle">Python syntax. C++ speed. No runtime.</p>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>Deific is a transpiler: <code>.df</code> source files are compiled to C++17 and then to a native binary via <code>g++ -O2</code>. It is designed for competitive programming where Python ergonomics are desirable but execution speed is critical.</p>
+    <p>The pipeline is: <code>.df</code> → Lexer → Parser → AST → Emitter → <code>.cpp</code> → <code>g++</code> → binary.</p>
+    <p>The emitted <code>.cpp</code> is self-contained and can be submitted directly to online judges.</p>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install">
+    <h2>Installation</h2>
+    <p>Build from source using the GNU Rust toolchain (MSVC will not work — the compiler invokes <code>g++</code> at runtime):</p>
+    <pre><code>cargo +stable-x86_64-pc-windows-gnu build --release</code></pre>
+    <p>The binary is placed at <code>target/release/deific.exe</code>.</p>
+    <div class="note"><strong>Windows:</strong> <code>g++</code> must be on your PATH. The expected toolchain is MSYS2 ucrt64 (<code>C:\msys64\ucrt64\bin</code>).</div>
+  </section>
+
+  <!-- CLI -->
+  <section id="cli">
+    <h2>CLI Usage</h2>
+    <table>
+      <tr><th>Command</th><th>Description</th></tr>
+      <tr><td><code>deific run file.df</code></td><td>Compile and immediately run</td></tr>
+      <tr><td><code>deific emit file.df</code></td><td>Print generated C++ to stdout</td></tr>
+      <tr><td><code>deific build file.df -o out</code></td><td>Build to a named binary</td></tr>
+      <tr><td><code>deific --version</code></td><td>Print version</td></tr>
+    </table>
+    <p>To feed stdin to a compiled program on Windows, use a file redirect to avoid encoding issues:</p>
+    <pre><code>cmd /c ".\out.exe &lt; input.txt"</code></pre>
+  </section>
+
+  <!-- TYPES -->
+  <section id="types">
+    <h2>Types</h2>
+    <table>
+      <tr><th>Deific type</th><th>C++ equivalent</th><th>Notes</th></tr>
+      <tr><td><code>int</code></td><td><code>long long</code></td><td>64-bit signed. Literals get <code>LL</code> suffix.</td></tr>
+      <tr><td><code>float</code></td><td><code>double</code></td><td></td></tr>
+      <tr><td><code>bool</code></td><td><code>bool</code></td><td>Literals: <code>True</code>, <code>False</code></td></tr>
+      <tr><td><code>str</code></td><td><code>std::string</code></td><td>Byte string, not Unicode codepoints.</td></tr>
+      <tr><td><code>bigint</code></td><td><code>__int128</code></td><td>Falls back to <code>long long</code> on platforms without 128-bit support.</td></tr>
+      <tr><td><code>list[T]</code></td><td><code>std::vector&lt;T&gt;</code></td><td></td></tr>
+      <tr><td><code>dict[K, V]</code></td><td><code>std::unordered_map&lt;K,V&gt;</code></td><td></td></tr>
+      <tr><td><code>set[T]</code></td><td><code>std::unordered_set&lt;T&gt;</code></td><td></td></tr>
+      <tr><td><code>void</code></td><td><code>void</code></td><td>Function return type only.</td></tr>
+    </table>
+    <p>Type annotations are only required in function signatures and for empty list declarations. Local variable types are inferred with <code>auto</code>.</p>
+  </section>
+
+  <!-- VARIABLES -->
+  <section id="variables">
+    <h2>Variables</h2>
+    <p>The first assignment in a scope declares the variable. Subsequent assignments reassign it.</p>
+    <pre><code>x = 10          # declares x (auto)
+x = 20          # reassigns x
+
+y: int = 5      # explicit type annotation</code></pre>
+    <p>Empty lists require a type annotation so the C++ type can be inferred:</p>
+    <pre><code>nums: list[int] = []</code></pre>
+    <h3>Tuple Unpacking</h3>
+    <pre><code>a, b = 1, 2
+a, b = b, a     # swap</code></pre>
+  </section>
+
+  <!-- OPERATORS -->
+  <section id="operators">
+    <h2>Operators</h2>
+    <table>
+      <tr><th>Operator</th><th>Description</th></tr>
+      <tr><td><code>+  -  *  /  //  %  **</code></td><td>Arithmetic (floor div, power)</td></tr>
+      <tr><td><code>&amp;  |  ^  ~  &lt;&lt;  &gt;&gt;</code></td><td>Bitwise</td></tr>
+      <tr><td><code>==  !=  &lt;  &lt;=  &gt;  &gt;=</code></td><td>Comparison</td></tr>
+      <tr><td><code>and  or  not</code></td><td>Logical</td></tr>
+      <tr><td><code>in  not in</code></td><td>Membership (list, dict, set, str)</td></tr>
+      <tr><td><code>+=  -=  *=  /=  //=  %=  **=</code></td><td>Augmented assignment</td></tr>
+      <tr><td><code>&amp;=  |=  ^=  &lt;&lt;=  &gt;&gt;=</code></td><td>Augmented bitwise assignment</td></tr>
+    </table>
+    <div class="note"><strong>Note:</strong> <code>**</code> calls <code>pow_int(base, exp)</code> (integer exponentiation). For modular exponentiation use <code>pow_mod(base, exp, mod)</code>.</div>
+  </section>
+
+  <!-- CONTROL FLOW -->
+  <section id="control-flow">
+    <h2>Control Flow</h2>
+    <h3>if / elif / else</h3>
+    <pre><code>if x &gt; 0:
+    print("positive")
+elif x == 0:
+    print("zero")
+else:
+    print("negative")</code></pre>
+
+    <h3>while</h3>
+    <pre><code>while n &gt; 0:
+    n -= 1</code></pre>
+
+    <h3>for</h3>
+    <pre><code>for i in range(10):
+    print(i)
+
+for i in range(1, 10, 2):    # start, stop, step
+    print(i)
+
+for i, v in enumerate(arr):
+    print(i, v)
+
+for a, b in zip(xs, ys):
+    print(a, b)
+
+for x in my_list:
+    print(x)</code></pre>
+
+    <p><code>break</code>, <code>continue</code>, and <code>pass</code> work as in Python.</p>
+  </section>
+
+  <!-- FUNCTIONS -->
+  <section id="functions">
+    <h2>Functions</h2>
+    <pre><code>func add(a: int, b: int) -> int:
+    return a + b
+
+func greet(name: str) -> void:
+    print("Hello", name)</code></pre>
+
+    <h3>Entry Point</h3>
+    <p>The <code>main</code> function with no parameters and no return type is the program entry point:</p>
+    <pre><code>func main():
+    print("Hello World!")</code></pre>
+
+    <h3>Reference Parameters</h3>
+    <p>Prefix a parameter with <code>ref</code> to pass by reference (in-place mutation):</p>
+    <pre><code>func double_all(ref nums: list[int]) -> void:
+    for i in range(len(nums)):
+        nums[i] *= 2</code></pre>
+
+    <h3>Inline Functions</h3>
+    <pre><code>inline func square(x: int) -> int:
+    return x * x</code></pre>
+
+    <h3>Generic Functions</h3>
+    <p>Type parameters are declared in square brackets after the function name:</p>
+    <pre><code>func identity[T](x: T) -> T:
+    return x</code></pre>
+
+    <h3>Accessing Global Variables</h3>
+    <pre><code>count = 0
+
+func increment() -> void:
+    global count
+    count += 1</code></pre>
+  </section>
+
+  <!-- STRUCTS -->
+  <section id="structs">
+    <h2>Structs</h2>
+    <pre><code>struct Point:
+    x: int
+    y: int
+
+func main():
+    p = Point(3, 4)
+    print(p.x, p.y)</code></pre>
+    <p>Struct fields are accessed with <code>.</code>. Construction uses the struct name as a function call with positional arguments.</p>
+  </section>
+
+  <!-- COLLECTIONS -->
+  <section id="collections">
+    <h2>Collections</h2>
+    <h3>Lists</h3>
+    <pre><code>nums = [1, 2, 3]
+nums.append(4)
+nums.sort()
+nums.reverse()
+nums.pop()              # removes last
+nums.pop(0)             # removes at index
+nums.insert(0, 99)
+nums.extend([5, 6])
+print(len(nums))
+print(nums[0])
+print(nums[-1])
+sub = nums[1:3]         # slice</code></pre>
+
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>.append(x)</code></td><td>Add to end</td></tr>
+      <tr><td><code>.pop()</code></td><td>Remove and return last element</td></tr>
+      <tr><td><code>.pop(i)</code></td><td>Remove element at index <code>i</code></td></tr>
+      <tr><td><code>.insert(i, x)</code></td><td>Insert <code>x</code> at index <code>i</code></td></tr>
+      <tr><td><code>.extend(other)</code></td><td>Append all elements from <code>other</code></td></tr>
+      <tr><td><code>.sort()</code></td><td>Sort in place (ascending)</td></tr>
+      <tr><td><code>.reverse()</code></td><td>Reverse in place</td></tr>
+      <tr><td><code>.clear()</code></td><td>Remove all elements</td></tr>
+      <tr><td><code>.index(x)</code></td><td>First index of <code>x</code></td></tr>
+      <tr><td><code>.count(x)</code></td><td>Number of occurrences of <code>x</code></td></tr>
+    </table>
+
+    <h3>List Comprehensions</h3>
+    <pre><code>squares = [x * x for x in range(10)]
+evens   = [x for x in range(20) if x % 2 == 0]</code></pre>
+
+    <h3>Dicts</h3>
+    <pre><code>d = {"a": 1, "b": 2}
+d["c"] = 3
+val = d.get("a", 0)     # get with default
+if "a" in d:
+    print(d["a"])</code></pre>
+
+    <h3>Sets</h3>
+    <pre><code>s = {1, 2, 3}
+s.add(4)
+s.discard(2)
+s.remove(1)
+if 3 in s:
+    print("found")</code></pre>
+
+    <h3>Tuples</h3>
+    <pre><code>t = (1, "hello", 3.14)
+a, b, c = t</code></pre>
+
+    <h3>Slicing</h3>
+    <pre><code>arr[start:stop]
+arr[start:stop:step]
+s[1:4]                  # works on strings too</code></pre>
+  </section>
+
+  <!-- STRINGS -->
+  <section id="strings">
+    <h2>Strings</h2>
+    <p>Strings are byte strings (<code>std::string</code>). Single and double quotes are both supported.</p>
+    <pre><code>s = "hello"
+t = s.upper()
+u = s + " world"
+print(len(s))</code></pre>
+
+    <table>
+      <tr><th>Method</th><th>Description</th></tr>
+      <tr><td><code>.upper()</code></td><td>Uppercase copy</td></tr>
+      <tr><td><code>.lower()</code></td><td>Lowercase copy</td></tr>
+      <tr><td><code>.strip()</code></td><td>Strip leading/trailing whitespace</td></tr>
+      <tr><td><code>.lstrip()</code></td><td>Strip leading whitespace</td></tr>
+      <tr><td><code>.rstrip()</code></td><td>Strip trailing whitespace</td></tr>
+      <tr><td><code>.split()</code></td><td>Split on whitespace</td></tr>
+      <tr><td><code>.split(sep)</code></td><td>Split on delimiter</td></tr>
+      <tr><td><code>sep.join(list)</code></td><td>Join list elements with separator</td></tr>
+      <tr><td><code>.startswith(s)</code></td><td>Prefix check</td></tr>
+      <tr><td><code>.endswith(s)</code></td><td>Suffix check</td></tr>
+      <tr><td><code>.find(sub)</code></td><td>Index of first occurrence, or <code>-1</code></td></tr>
+      <tr><td><code>.find(sub, start)</code></td><td>Search from <code>start</code></td></tr>
+      <tr><td><code>.replace(old, new)</code></td><td>Replace all occurrences</td></tr>
+      <tr><td><code>.count(sub)</code></td><td>Count occurrences of <code>sub</code></td></tr>
+      <tr><td><code>.zfill(width)</code></td><td>Zero-pad to width</td></tr>
+    </table>
+
+    <h3>String Concatenation</h3>
+    <pre><code>s = "value: " + str(42)</code></pre>
+  </section>
+
+  <!-- I/O -->
+  <section id="io">
+    <h2>Input / Output</h2>
+    <p>All I/O uses a fast buffered implementation — safe for large competitive programming inputs.</p>
+    <table>
+      <tr><th>Function</th><th>Description</th></tr>
+      <tr><td><code>print(a, b, ...)</code></td><td>Print values separated by spaces, followed by newline</td></tr>
+      <tr><td><code>input()</code></td><td>Read a full line from stdin as <code>str</code></td></tr>
+      <tr><td><code>read_int()</code></td><td>Read one integer from stdin</td></tr>
+      <tr><td><code>read_float()</code></td><td>Read one float from stdin</td></tr>
+      <tr><td><code>read_ints(n)</code></td><td>Read <code>n</code> integers, returns <code>list[int]</code></td></tr>
+      <tr><td><code>read_floats(n)</code></td><td>Read <code>n</code> floats, returns <code>list[float]</code></td></tr>
+    </table>
+    <pre><code>n = read_int()
+nums = read_ints(n)
+name = input()
+print("Sum:", sum(nums))</code></pre>
+  </section>
+
+  <!-- BUILT-INS -->
+  <section id="builtins">
+    <h2>Built-in Functions</h2>
+    <table>
+      <tr><th>Function</th><th>Description</th></tr>
+      <tr><td><code>len(x)</code></td><td>Length of list, str, dict, or set</td></tr>
+      <tr><td><code>range(stop)</code></td><td>Integers <code>0..stop</code></td></tr>
+      <tr><td><code>range(start, stop)</code></td><td>Integers <code>start..stop</code></td></tr>
+      <tr><td><code>range(start, stop, step)</code></td><td>With step</td></tr>
+      <tr><td><code>enumerate(iterable)</code></td><td>Yields <code>(index, value)</code> pairs</td></tr>
+      <tr><td><code>enumerate(iterable, start)</code></td><td>Start index at <code>start</code></td></tr>
+      <tr><td><code>zip(a, b)</code></td><td>Yields <code>(a[i], b[i])</code> pairs</td></tr>
+      <tr><td><code>sorted(list)</code></td><td>Returns sorted copy</td></tr>
+      <tr><td><code>sorted(list, True)</code></td><td>Returns reverse-sorted copy</td></tr>
+      <tr><td><code>reversed(list)</code></td><td>Returns reversed copy</td></tr>
+      <tr><td><code>abs(x)</code></td><td>Absolute value</td></tr>
+      <tr><td><code>min(a, b)</code></td><td>Minimum of two values</td></tr>
+      <tr><td><code>min(list)</code></td><td>Minimum value in list</td></tr>
+      <tr><td><code>max(a, b)</code></td><td>Maximum of two values</td></tr>
+      <tr><td><code>max(list)</code></td><td>Maximum value in list</td></tr>
+      <tr><td><code>sum(list)</code></td><td>Sum of list</td></tr>
+      <tr><td><code>int(x)</code></td><td>Convert str or float to int</td></tr>
+      <tr><td><code>float(x)</code></td><td>Convert str or int to float</td></tr>
+      <tr><td><code>str(x)</code></td><td>Convert value to string</td></tr>
+      <tr><td><code>chr(n)</code></td><td>Integer to single-character string</td></tr>
+      <tr><td><code>ord(s)</code></td><td>First character of string to integer</td></tr>
+      <tr><td><code>gcd(a, b)</code></td><td>Greatest common divisor</td></tr>
+      <tr><td><code>lcm(a, b)</code></td><td>Least common multiple</td></tr>
+      <tr><td><code>pow_mod(base, exp, mod)</code></td><td>Modular exponentiation</td></tr>
+      <tr><td><code>exit(code)</code></td><td>Exit with code (default <code>0</code>)</td></tr>
+      <tr><td><code>panic(msg)</code></td><td>Print error to stderr and exit 1</td></tr>
+      <tr><td><code>assert(cond)</code></td><td>Abort if condition is false</td></tr>
+    </table>
+  </section>
+
+  <!-- SPECIAL KEYWORDS -->
+  <section id="special">
+    <h2>Special Keywords</h2>
+
+    <h3>const</h3>
+    <p>Declares a compile-time constant (<code>constexpr</code> in C++):</p>
+    <pre><code>const MOD = 1000000007
+const PI  = 3.14159</code></pre>
+
+    <h3>static</h3>
+    <p>Declares a local static — initialized once, persists across calls:</p>
+    <pre><code>func counter() -> int:
+    static n = 0
+    n += 1
+    return n</code></pre>
+
+    <h3>defer</h3>
+    <p>Schedules an expression to run at the end of the enclosing function scope (RAII):</p>
+    <pre><code>func work() -> void:
+    defer print("done")
+    print("working...")</code></pre>
+
+    <h3>global</h3>
+    <p>Marks a name as referring to the module-level global:</p>
+    <pre><code>total = 0
+
+func add(x: int) -> void:
+    global total
+    total += x</code></pre>
+  </section>
+
+  <!-- DIFFERENCES FROM PYTHON -->
+  <section id="differences">
+    <h2>Differences from Python</h2>
+    <p>Deific is intentionally not Python. Three deliberate breaks:</p>
+    <table>
+      <tr><th>Feature</th><th>Python</th><th>Deific</th></tr>
+      <tr><td>Integer type</td><td>Arbitrary precision</td><td>64-bit <code>long long</code></td></tr>
+      <tr><td>Assignment</td><td>Reference semantics (GC)</td><td>Value-copy semantics (no GC)</td></tr>
+      <tr><td>Strings</td><td>Unicode codepoints</td><td>Byte strings (<code>std::string</code>)</td></tr>
+    </table>
+    <p>When Python ergonomics and C++ speed conflict, speed wins.</p>
+  </section>
+
+  <!-- EXAMPLES -->
+  <section id="examples">
+    <h2>Examples</h2>
+
+    <h3>Hello World</h3>
+    <pre><code>func main():
+    print("Hello World!")</code></pre>
+
+    <h3>Read and Sort</h3>
+    <pre><code>func main():
+    n = read_int()
+    nums = read_ints(n)
+    nums.sort()
+    print(*nums)</code></pre>
+
+    <h3>Fibonacci</h3>
+    <pre><code>func fib(n: int) -> int:
+    if n &lt;= 1:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+func main():
+    print(fib(10))</code></pre>
+
+    <h3>Struct Usage</h3>
+    <pre><code>struct Point:
+    x: int
+    y: int
+
+func dist(p: Point) -> float:
+    return float(p.x * p.x + p.y * p.y)
+
+func main():
+    p = Point(3, 4)
+    print(dist(p))</code></pre>
+
+    <h3>List Comprehension</h3>
+    <pre><code>func main():
+    n = read_int()
+    nums = read_ints(n)
+    evens = [x for x in nums if x % 2 == 0]
+    print(sum(evens))</code></pre>
+
+    <h3>Modular Exponentiation</h3>
+    <pre><code>const MOD = 1000000007
+
+func main():
+    base = read_int()
+    exp  = read_int()
+    print(pow_mod(base, exp, MOD))</code></pre>
+  </section>
+
+</main>
+
+</body>
+</html>
