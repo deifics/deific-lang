@@ -12,7 +12,6 @@ mod emit;
 mod lexer;
 mod parser;
 
-use ast::Program as _; // ensure ast types are in scope for resolve_imports
 
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};

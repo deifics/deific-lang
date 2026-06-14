@@ -1134,7 +1134,7 @@ mod tests {
     #[test]
     fn test_power_emit() {
         let cpp = compile("func main():\n    x = 2 ** 10\n");
-        assert!(cpp.contains("deific::pow_int(2LL,10LL)"));
+        assert!(cpp.contains("deific::deific_pow(2LL,10LL)"));
     }
 
     #[test]
