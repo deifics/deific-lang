@@ -1,8 +1,8 @@
 [package]
 name = "deific"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "Deific: Python's syntax, transpiled to C++. C++ performance for competitive programming."
+description = "Deific: write fast, stay readable."
 
 [[bin]]
 name = "deific"

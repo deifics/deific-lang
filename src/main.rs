@@ -17,6 +17,14 @@ use std::process::{exit, Command};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        usage();
+        exit(2);
+    }
+    if args[1] == "--version" || args[1] == "-v" {
+        println!("deific {}", env!("CARGO_PKG_VERSION"));
+        exit(0);
+    }
     if args.len() < 3 {
         usage();
         exit(2);
