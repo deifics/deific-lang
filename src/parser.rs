@@ -94,11 +94,26 @@ impl Parser {
     // ---- program ------------------------------------------------------------
 
     pub fn parse_program(&mut self) -> PResult<Program> {
+        let mut imports = Vec::new();
         let mut structs = Vec::new();
         let mut globals = Vec::new();
         let mut funcs = Vec::new();
         self.skip_newlines();
         while !matches!(self.peek(), Tok::Eof) {
+            if self.is_kw("bring") {
+                self.bump();
+                // Allow dotted paths: bring math.utils → "math/utils"
+                let mut path = self.ident()?;
+                while self.is_op(".") {
+                    self.bump();
+                    path.push('/');
+                    path.push_str(&self.ident()?);
+                }
+                self.expect_newline()?;
+                imports.push(path);
+                self.skip_newlines();
+                continue;
+            }
             if self.is_kw("struct") {
                 structs.push(self.parse_struct()?);
             } else if self.is_kw("func") || self.is_kw("inline") {
@@ -119,7 +134,7 @@ impl Parser {
             }
             self.skip_newlines();
         }
-        Ok(Program { structs, globals, funcs })
+        Ok(Program { imports, structs, globals, funcs })
     }
 
     fn parse_struct(&mut self) -> PResult<crate::ast::StructDef> {

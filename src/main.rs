@@ -12,6 +12,8 @@ mod emit;
 mod lexer;
 mod parser;
 
+use ast::Program as _; // ensure ast types are in scope for resolve_imports
+
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -80,16 +82,63 @@ fn main() {
     }
 }
 
+fn resolve_imports(program: &mut ast::Program, base_dir: &Path, seen: &mut std::collections::HashSet<std::path::PathBuf>) {
+    let import_paths: Vec<String> = program.imports.drain(..).collect();
+    for imp in import_paths {
+        let candidate = base_dir.join(format!("{}.df", imp));
+        let abs = match candidate.canonicalize() {
+            Ok(p) => p,
+            Err(_) => {
+                eprintln!("deific: warning: could not find module '{}'", imp);
+                continue;
+            }
+        };
+        if !seen.insert(abs.clone()) { continue; } // already loaded
+        let src = match std::fs::read_to_string(&abs) {
+            Ok(s) => s,
+            Err(e) => fail(&format!("cannot read module '{}': {}", abs.display(), e)),
+        };
+        let toks = match lexer::lex(&src) {
+            Ok(t) => t,
+            Err(e) => fail(&format!("{}:{}: lex error: {}", abs.display(), e.line, e.msg)),
+        };
+        let mut p = parser::Parser::new(toks);
+        let mut imported = match p.parse_program() {
+            Ok(pr) => pr,
+            Err(e) => fail(&format!("{}:{}: parse error: {}", abs.display(), e.line, e.msg)),
+        };
+        // Recursively resolve imports in the imported file
+        let module_dir = abs.parent().unwrap_or(base_dir);
+        resolve_imports(&mut imported, module_dir, seen);
+        // Merge: imported definitions come first so they're available to the main file
+        imported.structs.append(&mut program.structs);
+        program.structs = imported.structs;
+        imported.globals.append(&mut program.globals);
+        program.globals = imported.globals;
+        // Skip any `main` function from imported modules
+        let fns: Vec<ast::Func> = imported.funcs.into_iter()
+            .filter(|f| f.name != "main")
+            .collect();
+        let mut merged = fns;
+        merged.append(&mut program.funcs);
+        program.funcs = merged;
+    }
+}
+
 fn compile_to_cpp(src: &str, path: &Path, test_mode: bool) -> String {
     let toks = match lexer::lex(src) {
         Ok(t) => t,
         Err(e) => fail(&format!("{}:{}: lex error: {}", path.display(), e.line, e.msg)),
     };
     let mut p = parser::Parser::new(toks);
-    let program = match p.parse_program() {
+    let mut program = match p.parse_program() {
         Ok(pr) => pr,
         Err(e) => fail(&format!("{}:{}: parse error: {}", path.display(), e.line, e.msg)),
     };
+    let base_dir = path.parent().unwrap_or(Path::new("."));
+    let mut seen = std::collections::HashSet::new();
+    if let Ok(abs) = path.canonicalize() { seen.insert(abs); }
+    resolve_imports(&mut program, base_dir, &mut seen);
     if test_mode {
         let (cpp, fns) = emit::emit_test_program(&program, &path.to_string_lossy());
         if fns.is_empty() {

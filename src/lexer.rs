@@ -23,7 +23,7 @@ const KEYWORDS: &[&str] = &[
     "func", "return", "for", "in", "while", "if", "elif", "else",
     "and", "or", "not", "True", "False",
     "break", "continue", "pass", "None", "bigint", "ref", "global", "struct", "defer",
-    "const", "static", "inline",
+    "const", "static", "inline", "bring",
 ];
 
 pub fn is_keyword(s: &str) -> bool {

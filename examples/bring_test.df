@@ -1,0 +1,6 @@
+bring mathutils
+
+func main():
+    v = Vec2(3.0, 4.0)
+    print(vec2_len(v))       # 5.0
+    print(clamp(15, 0, 10))  # 10

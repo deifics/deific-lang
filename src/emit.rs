@@ -189,6 +189,13 @@ inline long long pow_int(long long base, long long exp) {
     for (; exp > 0; exp >>= 1) { if (exp & 1) r *= base; base *= base; }
     return r;
 }
+template<class A, class B>
+inline auto deific_pow(A base, B exp) {
+    if constexpr (std::is_floating_point_v<A> || std::is_floating_point_v<B>)
+        return std::pow((double)base, (double)exp);
+    else
+        return pow_int((long long)base, (long long)exp);
+}
 inline long long pow_mod(long long base, long long exp, long long mod) {
     long long r = 1; base %= mod;
     for (; exp > 0; exp >>= 1) { if (exp & 1) r = r*base%mod; base = base*base%mod; }
@@ -539,8 +546,7 @@ fn emit_stmt(s: &mut String, st: &Stmt, scope: &mut HashSet<String>, depth: usiz
                 _ => unreachable!("invalid aug op"),
             };
             if *op == BinOp::Pow {
-                // target = pow_int(target, value)  — emit as reassign
-                s.push_str(&format!("{} = deific::pow_int({}, {});\n",
+                s.push_str(&format!("{} = deific::deific_pow({}, {});\n",
                     expr(target), expr(target), expr(value)));
             } else {
                 s.push_str(&format!("{} {} {};\n", expr(target), op_str, expr(value)));
@@ -854,7 +860,7 @@ fn emit_bin(op: BinOp, l: &Expr, r: &Expr) -> String {
         BinOp::FloorDiv => format!("(({})/({}))",&ls,&rs),
         BinOp::And      => format!("({}&&{})", ls, rs),
         BinOp::Or       => format!("({}||{})", ls, rs),
-        BinOp::Pow      => format!("deific::pow_int({},{})", ls, rs),
+        BinOp::Pow      => format!("deific::deific_pow({},{})", ls, rs),
         BinOp::In       => format!("deific::deific_in({},{})", ls, rs),
         BinOp::NotIn    => format!("(!deific::deific_in({},{}))", ls, rs),
         _ => {

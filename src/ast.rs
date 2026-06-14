@@ -51,6 +51,7 @@ pub struct GlobalVar {
 
 #[derive(Debug, Clone)]
 pub struct Program {
+    pub imports: Vec<String>,
     pub structs: Vec<StructDef>,
     pub globals: Vec<GlobalVar>,
     pub funcs: Vec<Func>,
