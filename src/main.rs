@@ -73,6 +73,23 @@ fn main() {
             let _ = std::fs::remove_file(&bin);
             exit(status.code().unwrap_or(1));
         }
+        "pipe" => {
+            let cpp = compile_to_cpp(&src, &src_path, false);
+            let tmp = std::env::temp_dir().join(format!("deific_{}", std::process::id()));
+            let bin = with_exe_ext(&tmp);
+            build_cpp(&cpp, &bin, false);
+            let mut cmd = Command::new(&bin);
+            if let Some(input_path) = parse_flag(&args, "--input") {
+                let f = std::fs::File::open(&input_path)
+                    .unwrap_or_else(|e| fail(&format!("cannot open input '{}': {}", input_path, e)));
+                cmd.stdin(f);
+            }
+            let status = cmd
+                .status()
+                .unwrap_or_else(|e| fail(&format!("failed to run binary: {}", e)));
+            let _ = std::fs::remove_file(&bin);
+            exit(status.code().unwrap_or(1));
+        }
         other => {
             eprintln!("deific: unknown command '{}'", other);
             usage();
@@ -193,6 +210,11 @@ fn parse_out_flag(args: &[String]) -> Option<PathBuf> {
     args.get(i + 1).map(PathBuf::from)
 }
 
+fn parse_flag<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
+    let i = args.iter().position(|a| a == flag)?;
+    args.get(i + 1).map(String::as_str)
+}
+
 fn default_bin(src: &Path) -> PathBuf {
     with_exe_ext(&src.with_extension(""))
 }
@@ -206,7 +228,7 @@ fn with_exe_ext(p: &Path) -> PathBuf {
 }
 
 fn usage() {
-    eprintln!("usage: deific <emit|build|run|test> <file.df> [-o out] [--static]");
+    eprintln!("usage: deific <emit|build|run|test|pipe> <file.df> [-o out] [--static] [--input <file>]");
 }
 
 fn fail(msg: &str) -> ! {
